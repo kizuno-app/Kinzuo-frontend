@@ -14,5 +14,10 @@ export const postService = {
   commentOnPost: async (postId: string, content: string) => {
     const response = await apiClient.post(`/posts/${postId}/comment`, { content });
     return response.data.data;
+  },
+  
+  sharePost: async (postId: string) => {
+    const response = await apiClient.post(`/posts/${postId}/share`);
+    return response.data.data;
   }
 };

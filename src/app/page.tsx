@@ -28,7 +28,41 @@ function PostCard({ post }: { post: any }) {
                 return {
                   ...p,
                   isLiked: !p.isLiked,
-                  likesCount: p.isLiked ? p.likesCount - 1 : p.likesCount + 1
+                  likes: p.isLiked ? (p.likes || 0) - 1 : (p.likes || 0) + 1
+                };
+              }
+              return p;
+            })
+          }))
+        };
+      });
+      return { previousFeed };
+    },
+    onError: (err, newTodo, context) => {
+      queryClient.setQueryData(["feed"], context?.previousFeed);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+    },
+  });
+
+  const shareMutation = useMutation({
+    mutationFn: () => postService.sharePost(post.id),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["feed"] });
+      const previousFeed = queryClient.getQueryData(["feed"]);
+      
+      queryClient.setQueryData(["feed"], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            posts: page.posts.map((p: any) => {
+              if (p.id === post.id) {
+                return {
+                  ...p,
+                  shares: (p.shares || 0) + 1
                 };
               }
               return p;
@@ -48,6 +82,10 @@ function PostCard({ post }: { post: any }) {
 
   const handleLike = () => {
     likeMutation.mutate();
+  };
+
+  const handleShare = () => {
+    shareMutation.mutate();
   };
 
   const authorName = post.author ? `${post.author.firstName} ${post.author.lastName}` : "Unknown User";
@@ -104,7 +142,7 @@ function PostCard({ post }: { post: any }) {
             <svg width="20" height="20" viewBox="0 0 24 24" fill={post.isLiked ? "#F5A623" : "none"} stroke={post.isLiked ? "#F5A623" : "#a1a1aa"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
             </svg>
-            {post.likesCount || 0}
+            {post.likes || 0}
           </button>
 
           <button
@@ -118,6 +156,22 @@ function PostCard({ post }: { post: any }) {
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
             </svg>
             {post.commentsCount || 0}
+          </button>
+
+          <button
+            onClick={handleShare}
+            style={{
+              display: "flex", alignItems: "center", gap: "8px",
+              background: "none", border: "none", cursor: "pointer",
+              color: "#a1a1aa", fontSize: "14px", fontWeight: 500, padding: 0,
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+              <polyline points="16 6 12 2 8 6" />
+              <line x1="12" y1="2" x2="12" y2="15" />
+            </svg>
+            {post.shares || 0}
           </button>
         </div>
 
