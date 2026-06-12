@@ -8,7 +8,7 @@ import RightSidebar from "@/components/RightSidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const { connectSocket, disconnectSocket } = useChatStore();
   const [mounted, setMounted] = useState(false);
 
@@ -17,10 +17,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (mounted && !isAuthenticated) {
-      router.push("/login");
+    if (mounted) {
+      if (!isAuthenticated) {
+        router.push("/login");
+      } else if (user && !user.onboardingCompleted) {
+        if (window.location.pathname !== "/onboarding") {
+          router.push("/onboarding");
+        }
+      }
     }
-  }, [isAuthenticated, router, mounted]);
+  }, [isAuthenticated, user, router, mounted]);
 
   useEffect(() => {
     if (isAuthenticated) {

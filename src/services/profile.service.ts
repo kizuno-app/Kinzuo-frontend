@@ -14,5 +14,19 @@ export const profileService = {
   getUserPosts: async (userId: string) => {
     const response = await apiClient.get(`/feed/user/${userId}`);
     return response.data.data;
+  },
+
+  checkUsername: async (username: string) => {
+    const response = await apiClient.get(`/users/check-username/${username}`);
+    return response.data.data.available;
+  },
+
+  uploadAvatar: async (formData: FormData) => {
+    const response = await apiClient.post(`/users/me/avatar`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
   }
 };

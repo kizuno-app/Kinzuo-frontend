@@ -9,5 +9,15 @@ export const connectionService = {
   unfollowUser: async (userId: string) => {
     const response = await apiClient.post(`/connections/${userId}/unfollow`);
     return response.data.data;
+  },
+
+  getFollowers: async (userId: string) => {
+    const response = await apiClient.get(`/connections/${userId}/followers`);
+    return response.data.data;
+  },
+
+  getFollowing: async (userId: string) => {
+    const response = await apiClient.get(`/connections/${userId}/following`);
+    return response.data.data;
   }
 };

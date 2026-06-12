@@ -4,6 +4,7 @@ import AppLayout from "@/components/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { discoverService } from "@/services/discover.service";
 import { connectionService } from "@/services/connection.service";
+import Link from "next/link";
 
 const mockCircles = [
   {
@@ -212,7 +213,8 @@ function PeopleCard({ person }: { person: any }) {
           {person.isFollowing ? "Connected" : "Connect"}
         </button>
 
-        <button
+        <Link
+          href={`/profile/${person.id}`}
           style={{
             background: "#262626",
             color: "#fafafa",
@@ -223,11 +225,15 @@ function PeopleCard({ person }: { person: any }) {
             fontWeight: 500,
             cursor: "pointer",
             transition: "background 0.15s",
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
           }}
           className="hover:bg-[#3f3f46]"
         >
           View Profile
-        </button>
+        </Link>
 
         <button
           onClick={() => setSkipped(true)}

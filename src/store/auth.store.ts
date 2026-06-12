@@ -6,11 +6,14 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  username?: string;
   avatar?: string;
   bio?: string;
+  location?: string;
   college?: string;
   branch?: string;
   year?: number;
+  onboardingCompleted?: boolean;
 }
 
 interface AuthState {
