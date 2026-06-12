@@ -19,5 +19,10 @@ export const postService = {
   sharePost: async (postId: string) => {
     const response = await apiClient.post(`/posts/${postId}/share`);
     return response.data.data;
+  },
+  
+  getPost: async (postId: string) => {
+    const response = await apiClient.get(`/posts/${postId}`);
+    return response.data.data;
   }
 };
