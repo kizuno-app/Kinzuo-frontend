@@ -46,15 +46,15 @@ export default function HomePage() {
 
   return (
     <>
-      <div style={{ padding: "24px", borderBottom: "1px solid #262626", marginBottom: "16px" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid #262626", marginBottom: "16px", position: "sticky", top: 0, background: "rgba(10,10,10,0.85)", backdropFilter: "blur(12px)", zIndex: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#fafafa", marginBottom: "4px" }}>
+            <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#fafafa", margin: 0, marginBottom: "4px" }}>
               Hey, {user?.firstName || 'User'} 👋
             </h1>
-            <p style={{ fontSize: "14px", color: "#a1a1aa" }}>Find your people</p>
+            <p style={{ fontSize: "14px", color: "#a1a1aa", margin: 0 }}>Find your people</p>
           </div>
-          <div style={{ display: "flex", gap: "12px" }}>
+          <div className="md:hidden">
             <button style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#1f1f22", border: "1px solid #262626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />

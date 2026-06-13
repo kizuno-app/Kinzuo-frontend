@@ -37,6 +37,15 @@ const navItems = [
     ),
   },
   {
+    label: "Notifications",
+    href: "/notifications",
+    icon: (active: boolean) => (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill={active ? "#fafafa" : "none"} stroke={active ? "#fafafa" : "#a1a1aa"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+      </svg>
+    ),
+  },
+  {
     label: "Chats",
     href: "/chats",
     icon: (active: boolean) => (
@@ -57,10 +66,13 @@ const navItems = [
   },
 ];
 
+import { useNotificationStore } from "@/store/notification.store";
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
   const [showSettings, setShowSettings] = useState(false);
 
   const handleLogout = () => {
@@ -109,6 +121,7 @@ export default function Sidebar() {
         <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
           {navItems.map((item) => {
             const isActive = pathname === item.href;
+            const isNotification = item.label === "Notifications";
             return (
               <Link
                 key={item.href}
@@ -125,9 +138,33 @@ export default function Sidebar() {
                   fontWeight: isActive ? 600 : 500,
                   fontSize: "15px",
                   transition: "background 0.2s ease",
+                  position: "relative",
                 }}
               >
-                {item.icon(isActive)}
+                <div style={{ position: "relative" }}>
+                  {item.icon(isActive)}
+                  {isNotification && unreadCount > 0 && (
+                    <div style={{
+                      position: "absolute",
+                      top: "-2px",
+                      right: "-2px",
+                      background: "#ef4444",
+                      color: "white",
+                      fontSize: "10px",
+                      fontWeight: "bold",
+                      height: "16px",
+                      minWidth: "16px",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "0 4px",
+                      border: "2px solid #0a0a0a"
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </div>
+                  )}
+                </div>
                 {item.label}
               </Link>
             );
@@ -223,7 +260,7 @@ export default function Sidebar() {
         }}
         className="flex md:hidden"
       >
-        {navItems.map((item) => {
+        {navItems.filter(item => item.label !== "Notifications").map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link

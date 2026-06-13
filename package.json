@@ -11,10 +11,12 @@
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
     "axios": "^1.17.0",
+    "date-fns": "^4.4.0",
     "libsodium-wrappers": "^0.8.4",
     "next": "16.2.7",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-easy-crop": "^6.0.2",
     "socket.io-client": "^4.8.3",
     "zustand": "^5.0.14"
   },
