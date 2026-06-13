@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import { useChatStore } from "@/store/chat.store";
+import { useNotificationStore } from "@/store/notification.store";
 import Sidebar from "@/components/Sidebar";
 import RightSidebar from "@/components/RightSidebar";
 
@@ -10,7 +11,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, user } = useAuthStore();
-  const { connectSocket, disconnectSocket } = useChatStore();
+  const { socket, connectSocket, disconnectSocket } = useChatStore();
+  const { fetchUnreadCount, incrementUnreadCount } = useNotificationStore();
   const [mounted, setMounted] = useState(false);
 
   const isChatsRoute = pathname.startsWith("/chats");
@@ -34,13 +36,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isAuthenticated) {
       connectSocket();
+      fetchUnreadCount();
     } else {
       disconnectSocket();
     }
     return () => {
       disconnectSocket();
     };
-  }, [isAuthenticated, connectSocket, disconnectSocket]);
+  }, [isAuthenticated, connectSocket, disconnectSocket, fetchUnreadCount]);
+
+  useEffect(() => {
+    if (socket) {
+      const handleNewNotification = () => {
+        incrementUnreadCount();
+      };
+      
+      socket.on('new_notification', handleNewNotification);
+      
+      return () => {
+        socket.off('new_notification', handleNewNotification);
+      };
+    }
+  }, [socket, incrementUnreadCount]);
 
   if (!mounted || !isAuthenticated) {
     return <div style={{ minHeight: "100vh", background: "#0a0a0a" }} />;
@@ -57,7 +74,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main
           style={{
             flex: 1,
-            maxWidth: isChatsRoute ? "100%" : "500px",
+            maxWidth: isChatsRoute ? "100%" : "550px",
             borderLeft: "1px solid #262626",
             borderRight: isChatsRoute ? "none" : "1px solid #262626",
             minHeight: "100vh",

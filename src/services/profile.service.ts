@@ -22,11 +22,7 @@ export const profileService = {
   },
 
   uploadImage: async (formData: FormData, type: 'avatar' | 'cover' = 'avatar') => {
-    const response = await apiClient.post(`/users/upload?type=${type}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await apiClient.post(`/users/upload?type=${type}`, formData);
     return response.data;
   }
 };

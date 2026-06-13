@@ -33,7 +33,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     socket.on('connect', () => {
-      console.log('Connected to Chat WS');
+      console.log('Connected to WS');
+      const user = useAuthStore.getState().user;
+      if (user?.id) {
+        socket.emit('join', user.id);
+      }
     });
 
     socket.on('user:online', (userId: string) => {

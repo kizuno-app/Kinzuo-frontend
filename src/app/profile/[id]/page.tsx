@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/auth.store";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import PostCard from "@/components/PostCard";
+import Cropper from 'react-easy-crop';
+import getCroppedImg from '@/utils/cropImage';
 
 export default function ProfilePage() {
   const params = useParams();
@@ -30,6 +32,15 @@ export default function ProfilePage() {
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [cropType, setCropType] = useState<'avatar' | 'cover'>('avatar');
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -86,39 +97,53 @@ export default function ProfilePage() {
         avatar: profile.avatar || "",
         coverImage: profile.coverImage || "",
       });
+      setAvatarFile(null);
+      setCoverFile(null);
     }
     setIsEditing(true);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (type === 'avatar') setUploadingAvatar(true);
-    else setUploadingCover(true);
+    const previewUrl = URL.createObjectURL(file);
+    setImageToCrop(previewUrl);
+    setCropType(type);
+    setShowCropModal(true);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+
+    if (type === 'avatar' && avatarInputRef.current) avatarInputRef.current.value = '';
+    if (type === 'cover' && coverInputRef.current) coverInputRef.current.value = '';
+  };
+
+  const handleCropComplete = async () => {
+    if (!imageToCrop || !croppedAreaPixels) return;
 
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const res = await profileService.uploadImage(formData, type);
-      
-      if (res.status === 'success' && res.data.url) {
-        if (type === 'avatar') {
-          setEditForm(prev => ({ ...prev, avatar: res.data.url }));
-        } else {
-          setEditForm(prev => ({ ...prev, coverImage: res.data.url }));
-        }
+      const croppedFile = await getCroppedImg(imageToCrop, croppedAreaPixels);
+      if (!croppedFile) return;
+
+      const newPreviewUrl = URL.createObjectURL(croppedFile);
+
+      if (cropType === 'avatar') {
+        setAvatarFile(croppedFile);
+        setEditForm(prev => ({ ...prev, avatar: newPreviewUrl }));
+      } else {
+        setCoverFile(croppedFile);
+        setEditForm(prev => ({ ...prev, coverImage: newPreviewUrl }));
       }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to upload image. Please try again.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to crop image");
     } finally {
-      if (type === 'avatar') setUploadingAvatar(false);
-      else setUploadingCover(false);
+      setShowCropModal(false);
+      setImageToCrop(null);
     }
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const payload: any = {};
@@ -127,15 +152,46 @@ export default function ProfilePage() {
     if (editForm.bio.trim()) payload.bio = editForm.bio.trim();
     if (editForm.location.trim()) payload.location = editForm.location.trim();
     if (editForm.branch.trim()) payload.branch = editForm.branch.trim();
-    if (editForm.avatar) payload.avatar = editForm.avatar;
-    if (editForm.coverImage) payload.coverImage = editForm.coverImage;
     
     const parsedYear = parseInt(editForm.year);
     if (!isNaN(parsedYear) && parsedYear >= 1 && parsedYear <= 5) {
       payload.year = parsedYear;
     }
 
-    updateMutation.mutate(payload);
+    try {
+      if (avatarFile) {
+        setUploadingAvatar(true);
+        const formData = new FormData();
+        formData.append('image', avatarFile);
+        const res = await profileService.uploadImage(formData, 'avatar');
+        if (res.status === 'success' && res.data.url) {
+          payload.avatar = res.data.url;
+        }
+        setUploadingAvatar(false);
+      } else if (editForm.avatar && !editForm.avatar.startsWith('blob:')) {
+        payload.avatar = editForm.avatar;
+      }
+      
+      if (coverFile) {
+        setUploadingCover(true);
+        const formData = new FormData();
+        formData.append('image', coverFile);
+        const res = await profileService.uploadImage(formData, 'cover');
+        if (res.status === 'success' && res.data.url) {
+          payload.coverImage = res.data.url;
+        }
+        setUploadingCover(false);
+      } else if (editForm.coverImage && !editForm.coverImage.startsWith('blob:')) {
+        payload.coverImage = editForm.coverImage;
+      }
+
+      updateMutation.mutate(payload);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload images before saving. Please try again.");
+      setUploadingAvatar(false);
+      setUploadingCover(false);
+    }
   };
 
   const interests = profile?.skills?.length ? profile.skills : ["#AI", "#Machine Learning", "#Gym"];
@@ -169,6 +225,72 @@ export default function ProfilePage() {
 
   return (
     <>
+      {/* Crop Modal */}
+      {showCropModal && imageToCrop && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", zIndex: 2000, display: "flex",
+          alignItems: "center", justifyContent: "center", padding: "20px"
+        }}>
+          <div style={{
+            backgroundColor: "#171717", borderRadius: "16px", width: "100%", maxWidth: cropType === 'cover' ? "800px" : "500px", 
+            border: "1px solid #2a2a2a", overflow: "hidden", display: "flex", flexDirection: "column",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
+          }}>
+            {/* Header */}
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #2a2a2a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#f0f0f0", margin: 0 }}>
+                {cropType === 'avatar' ? 'Edit Profile Picture' : 'Edit Cover Image'}
+              </h2>
+              <button onClick={() => { setShowCropModal(false); setImageToCrop(null); }} style={{ background: "none", border: "none", color: "#a1a1aa", cursor: "pointer", display: "flex", padding: "4px", transition: "color 0.2s" }} onMouseOver={e => e.currentTarget.style.color = '#fff'} onMouseOut={e => e.currentTarget.style.color = '#a1a1aa'}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+
+            {/* Cropper Area */}
+            <div style={{ position: "relative", width: "100%", height: cropType === 'avatar' ? "400px" : "300px", backgroundColor: "#0a0a0a" }}>
+              <Cropper
+                image={imageToCrop}
+                crop={crop}
+                zoom={zoom}
+                aspect={cropType === 'avatar' ? 1 : 3}
+                cropShape={cropType === 'avatar' ? 'round' : 'rect'}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(croppedArea, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
+                style={{
+                  containerStyle: { backgroundColor: '#0a0a0a' },
+                  cropAreaStyle: { border: '2px solid #F5A623', boxShadow: '0 0 0 9999em rgba(0,0,0,0.7)' }
+                }}
+              />
+            </div>
+
+            {/* Footer with Zoom and Actions */}
+            <div style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: "28px" }}>
+              {/* Zoom Slider */}
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", padding: "0 10px" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                <input 
+                  type="range" min={1} max={3} step={0.05} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} 
+                  style={{ flex: 1, accentColor: "#F5A623", cursor: "pointer", height: "4px", backgroundColor: "#333", borderRadius: "2px", outline: "none" }} 
+                />
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                <button onClick={() => { setShowCropModal(false); setImageToCrop(null); }} style={{ padding: "10px 24px", borderRadius: "999px", backgroundColor: "transparent", color: "#f0f0f0", border: "1px solid #333", cursor: "pointer", fontWeight: 600, transition: "0.2s" }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#222'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                  Cancel
+                </button>
+                <button onClick={handleCropComplete} style={{ padding: "10px 32px", borderRadius: "999px", backgroundColor: "#F5A623", color: "#000", border: "none", cursor: "pointer", fontWeight: 700, transition: "0.2s" }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#d9921e'} onMouseOut={e => e.currentTarget.style.backgroundColor = '#F5A623'}>
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Profile Modal */}
       {isEditing && isOwnProfile && (
         <div style={{
@@ -195,15 +317,20 @@ export default function ProfilePage() {
                   border: "none", fontWeight: 700, fontSize: "14px", cursor: (updateMutation.isPending || uploadingAvatar || uploadingCover) ? "not-allowed" : "pointer", opacity: (updateMutation.isPending || uploadingAvatar || uploadingCover) ? 0.7 : 1
                 }}
               >
-                {updateMutation.isPending ? "Saving..." : "Save"}
+                {updateMutation.isPending || uploadingAvatar || uploadingCover ? "Saving..." : "Save"}
               </button>
             </div>
             
             <div style={{ position: "relative" }}>
               {/* Cover Image Editor */}
-              <div style={{ height: "200px", width: "100%", position: "relative", background: editForm.coverImage ? `url(${editForm.coverImage})` : "#333", backgroundSize: "cover", backgroundPosition: "center" }}>
-                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <button onClick={() => coverInputRef.current?.click()} style={{ background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: "44px", height: "44px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", transition: "0.2s hover:bg-black" }}>
+              <div style={{ 
+                height: "200px", width: "100%", position: "relative", 
+                backgroundColor: "#333",
+                backgroundImage: editForm.coverImage ? `url(${editForm.coverImage})` : "none", 
+                backgroundSize: "cover", backgroundPosition: "center" 
+              }}>
+                <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button onClick={() => coverInputRef.current?.click()} style={{ backgroundColor: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: "44px", height: "44px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", transition: "0.2s hover:bg-black" }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                   </button>
                   <input type="file" ref={coverInputRef} style={{ display: "none" }} accept="image/*" onChange={(e) => handleImageUpload(e, 'cover')} />
@@ -212,9 +339,14 @@ export default function ProfilePage() {
 
               {/* Avatar Editor */}
               <div style={{ position: "absolute", bottom: "-60px", left: "20px" }}>
-                <div style={{ width: "120px", height: "120px", borderRadius: "50%", border: "4px solid #171717", position: "relative", background: editForm.avatar ? `url(${editForm.avatar})` : "#555", backgroundSize: "cover", backgroundPosition: "center" }}>
-                  <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <button onClick={() => avatarInputRef.current?.click()} style={{ background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}>
+                <div style={{ 
+                  width: "120px", height: "120px", borderRadius: "50%", border: "4px solid #171717", position: "relative", 
+                  backgroundColor: "#555",
+                  backgroundImage: editForm.avatar ? `url(${editForm.avatar})` : "none", 
+                  backgroundSize: "cover", backgroundPosition: "center" 
+                }}>
+                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.3)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <button onClick={() => avatarInputRef.current?.click()} style={{ backgroundColor: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                     </button>
                     <input type="file" ref={avatarInputRef} style={{ display: "none" }} accept="image/*" onChange={(e) => handleImageUpload(e, 'avatar')} />

@@ -188,13 +188,13 @@ export default function SinglePostPage() {
 
   return (
     <>
-      <div style={{ maxWidth: "600px", margin: "0 auto", paddingBottom: "100px" }}>
+      <div style={{ width: "100%", padding: "0 8px", paddingBottom: "100px" }}>
         
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", position: "sticky", top: 0, background: "rgba(10,10,10,0.85)", backdropFilter: "blur(12px)", zIndex: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", padding: "12px 8px", position: "sticky", top: 0, background: "rgba(10,10,10,0.85)", backdropFilter: "blur(12px)", zIndex: 10 }}>
           <button 
             onClick={() => router.back()}
-            style={{ background: "none", border: "none", color: "#fafafa", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "8px", borderRadius: "50%", marginRight: "20px" }}
+            style={{ background: "none", border: "none", color: "#fafafa", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "8px", borderRadius: "50%", marginRight: "12px", marginLeft: "-8px" }}
             className="hover:bg-[#1f1f22] transition-colors"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -207,11 +207,11 @@ export default function SinglePostPage() {
 
         {/* Master Card Container */}
         <div style={{ 
-          background: "#111111", 
+          background: "#171717", 
           border: "1px solid #262626", 
           borderRadius: "16px", 
-          padding: "20px",
-          marginTop: "16px",
+          padding: "16px",
+          marginTop: "8px",
           marginBottom: "20px"
         }}>
           
@@ -289,7 +289,7 @@ export default function SinglePostPage() {
             </button>
           </div>
 
-          <div style={{ height: "1px", background: "#262626", margin: "20px 0" }} />
+          <div style={{ height: "2px", background: "#333333", margin: "20px 0", borderRadius: "1px" }} />
 
           {/* Write Comment Box */}
           <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "8px" }}>

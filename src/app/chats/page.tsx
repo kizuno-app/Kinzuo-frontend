@@ -344,9 +344,7 @@ function ChatsContent() {
       const formData = new FormData();
       formData.append('image', file);
       
-      const response = await apiClient.post('/chat/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await apiClient.post('/chat/upload', formData);
       
       const imageUrl = response.data.data.url;
       await handleSendMessage(imageUrl);
