@@ -1,6 +1,5 @@
 "use client";
-import { useState } from "react";
-import AppLayout from "@/components/AppLayout";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { profileService } from "@/services/profile.service";
 import { connectionService } from "@/services/connection.service";
@@ -8,6 +7,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import PostCard from "@/components/PostCard";
+
 export default function ProfilePage() {
   const params = useParams();
   const profileId = params.id as string;
@@ -16,13 +16,23 @@ export default function ProfilePage() {
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  
   const [editForm, setEditForm] = useState({
     firstName: "",
     lastName: "",
     bio: "",
+    location: "",
     branch: "",
     year: "",
+    avatar: "",
+    coverImage: "",
   });
+
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   
   const { user: currentUser } = useAuthStore();
   const queryClient = useQueryClient();
@@ -70,22 +80,55 @@ export default function ProfilePage() {
         firstName: profile.firstName || "",
         lastName: profile.lastName || "",
         bio: profile.bio || "",
+        location: profile.location || "",
         branch: profile.branch || "",
         year: profile.year?.toString() || "",
+        avatar: profile.avatar || "",
+        coverImage: profile.coverImage || "",
       });
     }
     setIsEditing(true);
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (type === 'avatar') setUploadingAvatar(true);
+    else setUploadingCover(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await profileService.uploadImage(formData, type);
+      
+      if (res.status === 'success' && res.data.url) {
+        if (type === 'avatar') {
+          setEditForm(prev => ({ ...prev, avatar: res.data.url }));
+        } else {
+          setEditForm(prev => ({ ...prev, coverImage: res.data.url }));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      if (type === 'avatar') setUploadingAvatar(false);
+      else setUploadingCover(false);
+    }
+  };
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Only send fields that are valid to avoid Zod validation errors
     const payload: any = {};
     if (editForm.firstName.trim().length >= 2) payload.firstName = editForm.firstName.trim();
     if (editForm.lastName.trim().length >= 2) payload.lastName = editForm.lastName.trim();
     if (editForm.bio.trim()) payload.bio = editForm.bio.trim();
+    if (editForm.location.trim()) payload.location = editForm.location.trim();
     if (editForm.branch.trim()) payload.branch = editForm.branch.trim();
+    if (editForm.avatar) payload.avatar = editForm.avatar;
+    if (editForm.coverImage) payload.coverImage = editForm.coverImage;
     
     const parsedYear = parseInt(editForm.year);
     if (!isNaN(parsedYear) && parsedYear >= 1 && parsedYear <= 5) {
@@ -95,17 +138,24 @@ export default function ProfilePage() {
     updateMutation.mutate(payload);
   };
 
-  // Fallback data if profile fields are empty
   const interests = profile?.skills?.length ? profile.skills : ["#AI", "#Machine Learning", "#Gym"];
-  const currentlyItems = profile?.currently ? profile.currently : [
-    { emoji: "🚀", text: "Open to project collaborations", color: "rgba(239,68,68,0.10)", border: "rgba(239,68,68,0.25)" },
-  ];
 
   if (loadingProfile) {
     return (
-      <AppLayout>
-        <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>Loading profile...</div>
-      </AppLayout>
+      <div className="animate-pulse">
+        <div style={{ height: "200px", width: "100%", background: "#262626" }} />
+        <div style={{ position: "relative", padding: "0 16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "-60px", marginBottom: "16px" }}>
+            <div style={{ width: "134px", height: "134px", borderRadius: "50%", border: "4px solid #000000", background: "#333", zIndex: 10 }} />
+          </div>
+          <div style={{ marginBottom: "16px" }}>
+            <div style={{ height: "24px", width: "200px", background: "#333", borderRadius: "8px", marginBottom: "8px" }} />
+            <div style={{ height: "16px", width: "120px", background: "#333", borderRadius: "8px" }} />
+          </div>
+          <div style={{ height: "16px", width: "80%", background: "#333", borderRadius: "8px", marginBottom: "8px" }} />
+          <div style={{ height: "16px", width: "60%", background: "#333", borderRadius: "8px", marginBottom: "16px" }} />
+        </div>
+      </div>
     );
   }
 
@@ -118,7 +168,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <AppLayout>
+    <>
       {/* Edit Profile Modal */}
       {isEditing && isOwnProfile && (
         <div style={{
@@ -127,73 +177,130 @@ export default function ProfilePage() {
           alignItems: "center", justifyContent: "center", padding: "20px"
         }}>
           <div style={{
-            background: "#171717", borderRadius: "16px", padding: "24px",
-            width: "100%", maxWidth: "500px", border: "1px solid #2a2a2a",
+            background: "#171717", borderRadius: "16px", width: "100%", maxWidth: "600px", 
+            border: "1px solid #2a2a2a", maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column"
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#f0f0f0" }}>Edit Profile</h2>
-              <button onClick={() => setIsEditing(false)} style={{ background: "none", border: "none", color: "#a1a1aa", cursor: "pointer" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            <div style={{ position: "sticky", top: 0, background: "rgba(23,23,23,0.9)", backdropFilter: "blur(10px)", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 20, borderBottom: "1px solid #2a2a2a" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                <button onClick={() => setIsEditing(false)} style={{ background: "none", border: "none", color: "#f0f0f0", cursor: "pointer", display: "flex" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+                <h2 style={{ fontSize: "20px", fontWeight: 700, color: "#f0f0f0", margin: 0 }}>Edit Profile</h2>
+              </div>
+              <button
+                onClick={handleSaveProfile}
+                disabled={updateMutation.isPending || uploadingAvatar || uploadingCover}
+                style={{
+                  padding: "6px 16px", borderRadius: "999px", background: "#f0f0f0", color: "#000",
+                  border: "none", fontWeight: 700, fontSize: "14px", cursor: (updateMutation.isPending || uploadingAvatar || uploadingCover) ? "not-allowed" : "pointer", opacity: (updateMutation.isPending || uploadingAvatar || uploadingCover) ? 0.7 : 1
+                }}
+              >
+                {updateMutation.isPending ? "Saving..." : "Save"}
               </button>
             </div>
-            <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            
+            <div style={{ position: "relative" }}>
+              {/* Cover Image Editor */}
+              <div style={{ height: "200px", width: "100%", position: "relative", background: editForm.coverImage ? `url(${editForm.coverImage})` : "#333", backgroundSize: "cover", backgroundPosition: "center" }}>
+                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button onClick={() => coverInputRef.current?.click()} style={{ background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: "44px", height: "44px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", transition: "0.2s hover:bg-black" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  </button>
+                  <input type="file" ref={coverInputRef} style={{ display: "none" }} accept="image/*" onChange={(e) => handleImageUpload(e, 'cover')} />
+                </div>
+              </div>
+
+              {/* Avatar Editor */}
+              <div style={{ position: "absolute", bottom: "-60px", left: "20px" }}>
+                <div style={{ width: "120px", height: "120px", borderRadius: "50%", border: "4px solid #171717", position: "relative", background: editForm.avatar ? `url(${editForm.avatar})` : "#555", backgroundSize: "cover", backgroundPosition: "center" }}>
+                  <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <button onClick={() => avatarInputRef.current?.click()} style={{ background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    </button>
+                    <input type="file" ref={avatarInputRef} style={{ display: "none" }} accept="image/*" onChange={(e) => handleImageUpload(e, 'avatar')} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: "80px 20px 20px", display: "flex", flexDirection: "column", gap: "20px" }}>
               <div style={{ display: "flex", gap: "16px" }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px" }}>First Name</label>
+                  <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px", fontWeight: 600 }}>First Name</label>
                   <input
                     value={editForm.firstName}
                     onChange={(e) => setEditForm({...editForm, firstName: e.target.value})}
-                    style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "10px 12px", color: "#f0f0f0", fontSize: "14px", outline: "none" }}
+                    placeholder="First Name"
+                    style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "12px 14px", color: "#f0f0f0", fontSize: "15px", outline: "none", transition: "border 0.2s" }}
+                    onFocus={(e) => e.target.style.border = "1px solid #F5A623"}
+                    onBlur={(e) => e.target.style.border = "1px solid #333"}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px" }}>Last Name</label>
+                  <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px", fontWeight: 600 }}>Last Name</label>
                   <input
                     value={editForm.lastName}
                     onChange={(e) => setEditForm({...editForm, lastName: e.target.value})}
-                    style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "10px 12px", color: "#f0f0f0", fontSize: "14px", outline: "none" }}
+                    placeholder="Last Name"
+                    style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "12px 14px", color: "#f0f0f0", fontSize: "15px", outline: "none", transition: "border 0.2s" }}
+                    onFocus={(e) => e.target.style.border = "1px solid #F5A623"}
+                    onBlur={(e) => e.target.style.border = "1px solid #333"}
                   />
                 </div>
               </div>
+
               <div>
-                <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px" }}>Bio</label>
+                <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px", fontWeight: 600 }}>Bio</label>
                 <textarea
                   value={editForm.bio}
                   onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
+                  placeholder="Tell us about yourself"
                   rows={3}
-                  style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "10px 12px", color: "#f0f0f0", fontSize: "14px", outline: "none", resize: "none" }}
+                  style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "12px 14px", color: "#f0f0f0", fontSize: "15px", outline: "none", resize: "none", transition: "border 0.2s", fontFamily: "inherit" }}
+                  onFocus={(e) => e.target.style.border = "1px solid #F5A623"}
+                  onBlur={(e) => e.target.style.border = "1px solid #333"}
                 />
               </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px", fontWeight: 600 }}>Location</label>
+                <input
+                  value={editForm.location}
+                  onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                  placeholder="E.g. San Francisco, CA"
+                  style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "12px 14px", color: "#f0f0f0", fontSize: "15px", outline: "none", transition: "border 0.2s" }}
+                  onFocus={(e) => e.target.style.border = "1px solid #F5A623"}
+                  onBlur={(e) => e.target.style.border = "1px solid #333"}
+                />
+              </div>
+
               <div style={{ display: "flex", gap: "16px" }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px" }}>Major / Branch</label>
+                  <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px", fontWeight: 600 }}>Occupation / Branch</label>
                   <input
                     value={editForm.branch}
                     onChange={(e) => setEditForm({...editForm, branch: e.target.value})}
-                    style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "10px 12px", color: "#f0f0f0", fontSize: "14px", outline: "none" }}
+                    placeholder="Computer Science"
+                    style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "12px 14px", color: "#f0f0f0", fontSize: "15px", outline: "none", transition: "border 0.2s" }}
+                    onFocus={(e) => e.target.style.border = "1px solid #F5A623"}
+                    onBlur={(e) => e.target.style.border = "1px solid #333"}
                   />
                 </div>
                 <div style={{ width: "100px" }}>
-                  <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px" }}>Year</label>
+                  <label style={{ display: "block", fontSize: "13px", color: "#a1a1aa", marginBottom: "6px", fontWeight: 600 }}>Year</label>
                   <input
                     type="number"
                     value={editForm.year}
                     onChange={(e) => setEditForm({...editForm, year: e.target.value})}
-                    style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "10px 12px", color: "#f0f0f0", fontSize: "14px", outline: "none" }}
+                    placeholder="1"
+                    min="1" max="5"
+                    style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: "8px", padding: "12px 14px", color: "#f0f0f0", fontSize: "15px", outline: "none", transition: "border 0.2s" }}
+                    onFocus={(e) => e.target.style.border = "1px solid #F5A623"}
+                    onBlur={(e) => e.target.style.border = "1px solid #333"}
                   />
                 </div>
               </div>
-              <button
-                type="submit"
-                disabled={updateMutation.isPending}
-                style={{
-                  marginTop: "8px", width: "100%", padding: "12px", borderRadius: "8px", background: "#F5A623",
-                  color: "#171717", border: "none", fontWeight: 600, fontSize: "14px", cursor: updateMutation.isPending ? "not-allowed" : "pointer", opacity: updateMutation.isPending ? 0.7 : 1
-                }}
-              >
-                {updateMutation.isPending ? "Saving..." : "Save Changes"}
-              </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
@@ -203,7 +310,9 @@ export default function ProfilePage() {
         style={{
           height: "200px",
           width: "100%",
-          background: "linear-gradient(135deg, #a4b5c4 0%, #d8cfd0 50%, #f4e8e1 100%)", // soft pastel look
+          background: profile?.coverImage ? `url(${profile.coverImage})` : "linear-gradient(135deg, #a4b5c4 0%, #d8cfd0 50%, #f4e8e1 100%)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
           position: "relative",
         }}
       >
@@ -218,7 +327,6 @@ export default function ProfilePage() {
       <div style={{ position: "relative", padding: "0 16px" }}>
         {/* Avatar & Buttons Row */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "-60px", marginBottom: "16px" }}>
-          {/* Avatar */}
           <div
             className={!profile?.avatar ? "avatar-gradient" : ""}
             style={{
@@ -230,6 +338,7 @@ export default function ProfilePage() {
               backgroundPosition: "center",
               backgroundImage: profile?.avatar ? `url(${profile.avatar})` : undefined,
               zIndex: 10,
+              backgroundColor: "#171717"
             }}
           />
           
@@ -249,18 +358,17 @@ export default function ProfilePage() {
                   cursor: "pointer",
                   transition: "background 0.2s",
                 }}
-                className="hover:bg-gray-900"
+                className="hover:bg-[#1a1a1a]"
               >
                 Edit profile
               </button>
             ) : (
               <>
-                <button style={{ width: "36px", height: "36px", borderRadius: "50%", background: "transparent", border: "1px solid #536471", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#eff3f4" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-                </button>
-                <button style={{ width: "36px", height: "36px", borderRadius: "50%", background: "transparent", border: "1px solid #536471", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#eff3f4" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                </button>
+                <Link href={`/chats?userId=${user.id}`}>
+                  <button style={{ width: "36px", height: "36px", borderRadius: "50%", background: "transparent", border: "1px solid #536471", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#eff3f4" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  </button>
+                </Link>
                 <button 
                   onClick={() => {
                     if (profile?.isFollowing) {
@@ -332,36 +440,22 @@ export default function ProfilePage() {
             <span style={{ fontWeight: 700, color: "#e7e9ea" }}>{userPosts.length || 0}</span> Posts
           </div>
         </div>
-
-        {!isOwnProfile && (
-          <div style={{ fontSize: "13px", color: "#71767b", marginBottom: "16px" }}>
-            Not followed by anyone you're following
-          </div>
-        )}
       </div>
 
       {/* Tabs */}
       <div style={{
-        display: "flex",
-        borderBottom: "1px solid #2a2a2a",
-        marginBottom: "0", // removed bottom margin so posts line up nicely if needed
-        gap: "0",
+        display: "flex", borderBottom: "1px solid #2a2a2a", gap: "0",
       }}>
         {(["posts", "about"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
-              padding: "12px 24px",
-              background: "none",
-              border: "none",
+              padding: "12px 24px", background: "none", border: "none",
               borderBottom: activeTab === tab ? "2px solid #F5A623" : "2px solid transparent",
               color: activeTab === tab ? "#F5A623" : "#777",
-              fontSize: "14px",
-              fontWeight: activeTab === tab ? 700 : 400,
-              cursor: "pointer",
-              textTransform: "capitalize",
-              transition: "all 0.15s",
+              fontSize: "14px", fontWeight: activeTab === tab ? 700 : 400,
+              cursor: "pointer", textTransform: "capitalize", transition: "all 0.15s",
             }}
           >
             {tab}
@@ -369,7 +463,6 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Posts tab */}
       {activeTab === "posts" && (
         <div style={{ padding: "16px" }}>
           {loadingPosts && <div style={{ color: "#666", textAlign: "center", padding: "20px" }}>Loading posts...</div>}
@@ -382,7 +475,6 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* About tab */}
       {activeTab === "about" && (
         <div style={{ padding: "16px" }}>
           <div style={{ background: "#171717", borderRadius: "16px", padding: "20px", border: "1px solid #262626" }}>
@@ -409,6 +501,7 @@ export default function ProfilePage() {
 
       {/* Followers Modal */}
       {showFollowersModal && (
+        // Followers Modal Code unchanged but keeping structure for brevity...
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
           background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex",
@@ -434,7 +527,7 @@ export default function ProfilePage() {
                 return (
                   <Link href={`/profile/${u.userId}`} key={u.userId} onClick={() => setShowFollowersModal(false)} style={{ textDecoration: "none" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px", borderRadius: "12px", transition: "background 0.2s" }} className="hover:bg-[#222]">
-                      <div className={u.avatar || "avatar-gradient"} style={{ width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0 }} />
+                      <div className={!u.avatar ? "avatar-gradient" : ""} style={{ width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0, backgroundImage: u.avatar ? `url(${u.avatar})` : undefined, backgroundSize: "cover" }} />
                       <div>
                         <div style={{ fontSize: "15px", fontWeight: 600, color: "#fafafa" }}>{u.firstName} {u.lastName}</div>
                         <div style={{ fontSize: "13px", color: "#a1a1aa" }}>{u.branch || "General"}</div>
@@ -475,7 +568,7 @@ export default function ProfilePage() {
                 return (
                   <Link href={`/profile/${u.userId}`} key={u.userId} onClick={() => setShowFollowingModal(false)} style={{ textDecoration: "none" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px", borderRadius: "12px", transition: "background 0.2s" }} className="hover:bg-[#222]">
-                      <div className={u.avatar || "avatar-gradient"} style={{ width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0 }} />
+                      <div className={!u.avatar ? "avatar-gradient" : ""} style={{ width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0, backgroundImage: u.avatar ? `url(${u.avatar})` : undefined, backgroundSize: "cover" }} />
                       <div>
                         <div style={{ fontSize: "15px", fontWeight: 600, color: "#fafafa" }}>{u.firstName} {u.lastName}</div>
                         <div style={{ fontSize: "13px", color: "#a1a1aa" }}>{u.branch || "General"}</div>
@@ -488,6 +581,6 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-    </AppLayout>
+    </>
   );
 }

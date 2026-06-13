@@ -11,8 +11,8 @@ export const chatService = {
     return response.data.data;
   },
   
-  sendMessage: async (receiverId: string, content: string) => {
-    const response = await apiClient.post(`/chat/${receiverId}/message`, { content });
+  sendMessage: async (receiverId: string, content: string, imageUrl?: string) => {
+    const response = await apiClient.post(`/chat/${receiverId}/message`, { content, imageUrl });
     return response.data.data;
   }
 };

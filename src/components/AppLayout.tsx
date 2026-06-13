@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import { useChatStore } from "@/store/chat.store";
 import Sidebar from "@/components/Sidebar";
@@ -8,9 +8,12 @@ import RightSidebar from "@/components/RightSidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, user } = useAuthStore();
   const { connectSocket, disconnectSocket } = useChatStore();
   const [mounted, setMounted] = useState(false);
+
+  const isChatsRoute = pathname.startsWith("/chats");
 
   useEffect(() => {
     setMounted(true);
@@ -54,20 +57,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main
           style={{
             flex: 1,
-            maxWidth: "500px",
+            maxWidth: isChatsRoute ? "100%" : "500px",
             borderLeft: "1px solid #262626",
-            borderRight: "1px solid #262626",
+            borderRight: isChatsRoute ? "none" : "1px solid #262626",
             minHeight: "100vh",
-            paddingBottom: "80px"
+            paddingBottom: "80px",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           {children}
         </main>
 
         {/* Right Sidebar */}
-        <div style={{ width: "320px", flexShrink: 0 }} className="hidden lg:block">
-          <RightSidebar />
-        </div>
+        {!isChatsRoute && (
+          <div style={{ width: "320px", flexShrink: 0 }} className="hidden lg:block">
+            <RightSidebar />
+          </div>
+        )}
 
       </div>
     </div>
