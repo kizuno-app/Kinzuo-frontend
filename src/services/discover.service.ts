@@ -1,8 +1,8 @@
 import { apiClient } from './api-client';
 
 export const discoverService = {
-  getSuggestedUsers: async () => {
-    const response = await apiClient.get('/discover/suggested-users');
+  getSuggestedUsers: async (q?: string) => {
+    const response = await apiClient.get('/discover/suggested-users', { params: { q } });
     return response.data.data; // unwrap { status, data: [...] }
   },
   

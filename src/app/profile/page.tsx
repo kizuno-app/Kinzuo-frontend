@@ -2,7 +2,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
-import AppLayout from "@/components/AppLayout";
 
 export default function ProfileRedirect() {
   const router = useRouter();
@@ -17,10 +16,10 @@ export default function ProfileRedirect() {
   }, [user, router]);
 
   return (
-    <AppLayout>
+    <>
       <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>
         Loading profile...
       </div>
-    </AppLayout>
+    </>
   );
 }

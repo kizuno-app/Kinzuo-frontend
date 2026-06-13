@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import AppLayout from "@/components/AppLayout";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { feedService } from "@/services/feed.service";
 import { postService } from "@/services/post.service";
@@ -9,7 +8,24 @@ import Link from "next/link";
 
 import PostCard from "@/components/PostCard";
 
-
+const PostSkeleton = () => (
+  <div className="animate-pulse" style={{ background: "#171717", borderRadius: "16px", padding: "16px", marginBottom: "16px", border: "1px solid #262626" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+      <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#333" }} />
+      <div>
+        <div style={{ width: "120px", height: "16px", background: "#333", borderRadius: "4px", marginBottom: "6px" }} />
+        <div style={{ width: "80px", height: "12px", background: "#333", borderRadius: "4px" }} />
+      </div>
+    </div>
+    <div style={{ width: "100%", height: "16px", background: "#333", borderRadius: "4px", marginBottom: "8px" }} />
+    <div style={{ width: "80%", height: "16px", background: "#333", borderRadius: "4px", marginBottom: "16px" }} />
+    <div style={{ height: "200px", width: "100%", background: "#333", borderRadius: "12px", marginBottom: "16px" }} />
+    <div style={{ display: "flex", gap: "16px" }}>
+      <div style={{ width: "60px", height: "32px", background: "#333", borderRadius: "16px" }} />
+      <div style={{ width: "60px", height: "32px", background: "#333", borderRadius: "16px" }} />
+    </div>
+  </div>
+);
 export default function HomePage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
@@ -29,7 +45,7 @@ export default function HomePage() {
   });
 
   return (
-    <AppLayout>
+    <>
       <div style={{ padding: "24px", borderBottom: "1px solid #262626", marginBottom: "16px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
@@ -39,11 +55,6 @@ export default function HomePage() {
             <p style={{ fontSize: "14px", color: "#a1a1aa" }}>Find your people</p>
           </div>
           <div style={{ display: "flex", gap: "12px" }}>
-            <button style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#1f1f22", border: "1px solid #262626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-              </svg>
-            </button>
             <button style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#1f1f22", border: "1px solid #262626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
@@ -56,7 +67,11 @@ export default function HomePage() {
 
       <div style={{ padding: "0 16px" }}>
         {isLoading && (
-          <div style={{ color: "#a1a1aa", textAlign: "center", padding: "40px" }}>Loading feed...</div>
+          <>
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
+          </>
         )}
         
         {isError && (
@@ -84,6 +99,6 @@ export default function HomePage() {
           </button>
         )}
       </div>
-    </AppLayout>
+    </>
   );
 }

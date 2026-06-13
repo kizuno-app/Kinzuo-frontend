@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import AppLayout from "@/components/AppLayout";
 
 import { useAuthStore } from "@/store/auth.store";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,7 +32,7 @@ export default function CreatePage() {
   const deptDisplay = `${authorDept} • ${authorYear}`;
 
   return (
-    <AppLayout>
+    <>
       <div style={{ padding: "24px", maxWidth: "600px", margin: "0 auto", position: "relative" }}>
         {/* Header Actions */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: "24px" }}>
@@ -115,6 +114,6 @@ export default function CreatePage() {
         </div>
 
       </div>
-    </AppLayout>
+    </>
   );
 }

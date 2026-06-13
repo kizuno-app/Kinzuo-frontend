@@ -43,7 +43,15 @@ export default function RegisterPage() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0a0a", padding: "20px" }}>
       <div style={{ width: "100%", maxWidth: "440px", padding: "32px", background: "#171717", borderRadius: "24px", border: "1px solid #262626" }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <h1 style={{ color: "#F5A623", fontSize: "28px", fontWeight: 800, marginBottom: "8px" }}>Campus Connect</h1>
+          <h1 style={{ 
+            background: "linear-gradient(90deg, #ff4b4b 0%, #4f46e5 50%, #fbbf24 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            fontSize: "32px", 
+            fontWeight: 800, 
+            marginBottom: "8px",
+            display: "inline-block"
+          }}>KIZUNO</h1>
           <p style={{ color: "#a1a1aa", fontSize: "15px" }}>Create your account to join the network.</p>
         </div>
 

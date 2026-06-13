@@ -94,8 +94,15 @@ export default function Sidebar() {
         className="hidden md:flex shrink-0"
       >
         <div style={{ padding: "0 16px 32px" }}>
-          <span style={{ color: "#F5A623", fontSize: "20px", fontWeight: 700, letterSpacing: "-0.5px" }}>
-            Campus
+          <span style={{ 
+            background: "linear-gradient(90deg, #ff4b4b 0%, #4f46e5 50%, #fbbf24 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            fontSize: "22px", 
+            fontWeight: 800, 
+            letterSpacing: "-0.5px" 
+          }}>
+            KIZUNO
           </span>
         </div>
 

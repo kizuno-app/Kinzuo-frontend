@@ -11,8 +11,9 @@ export const postService = {
     return response.data.data;
   },
   
-  commentOnPost: async (postId: string, content: string) => {
-    const response = await apiClient.post(`/posts/${postId}/comment`, { content });
+  addComment: async (postId: string, content: string, parentId?: string) => {
+    const payload = parentId ? { content, parentId } : { content };
+    const response = await apiClient.post(`/posts/${postId}/comment`, payload);
     return response.data.data;
   },
   
@@ -24,5 +25,12 @@ export const postService = {
   getPost: async (postId: string) => {
     const response = await apiClient.get(`/posts/${postId}`);
     return response.data.data;
-  }
+  },
+  
+  getComments: async (postId: string, parentId?: string, skip = 0, take = 3) => {
+    let url = `/posts/${postId}/comments?skip=${skip}&take=${take}`;
+    if (parentId) url += `&parentId=${parentId}`;
+    const response = await apiClient.get(url);
+    return response.data.data;
+  },
 };

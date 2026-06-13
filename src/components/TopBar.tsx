@@ -62,8 +62,14 @@ export default function TopBar() {
           cursor: "pointer",
         }}
       >
-        <span style={{ fontSize: "13px", fontWeight: 500, color: "#c0c0c0" }}>
-          Campus Social Networking Platform
+        <span style={{ 
+          background: "linear-gradient(90deg, #ff4b4b 0%, #4f46e5 50%, #fbbf24 100%)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          fontSize: "14px", 
+          fontWeight: 700 
+        }}>
+          KIZUNO
         </span>
         <svg
           width="12"
