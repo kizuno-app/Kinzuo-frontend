@@ -40,9 +40,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     });
 
-    socket.on('user:online', (userId: string) => {
+    socket.on('online_users', (users: string[]) => {
+      set({ onlineUsers: users });
+    });
+
+    socket.on('user_online', (userId: string) => {
       set((state) => ({
         onlineUsers: [...new Set([...state.onlineUsers, userId])],
+      }));
+    });
+
+    socket.on('user_offline', (userId: string) => {
+      set((state) => ({
+        onlineUsers: state.onlineUsers.filter(id => id !== userId),
       }));
     });
 

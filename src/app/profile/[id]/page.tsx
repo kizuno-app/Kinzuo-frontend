@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import PostCard from "@/components/PostCard";
+import VerificationBadge from "@/components/VerificationBadge";
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '@/utils/cropImage';
 
@@ -54,24 +55,28 @@ export default function ProfilePage() {
     queryKey: ['profile', profileId],
     queryFn: () => profileService.getProfile(profileId),
     enabled: !!profileId,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 
   const { data: userPosts = [], isLoading: loadingPosts } = useQuery({
     queryKey: ['posts', 'user', profileId],
     queryFn: () => profileService.getUserPosts(profileId),
     enabled: !!profileId,
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: followers = [], isLoading: loadingFollowers } = useQuery({
     queryKey: ['followers', profileId],
     queryFn: () => connectionService.getFollowers(profileId),
     enabled: !!profileId && showFollowersModal,
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: following = [], isLoading: loadingFollowing } = useQuery({
     queryKey: ['following', profileId],
     queryFn: () => connectionService.getFollowing(profileId),
     enabled: !!profileId && showFollowingModal,
+    staleTime: 1000 * 60 * 5,
   });
 
   const updateMutation = useMutation({
@@ -149,9 +154,9 @@ export default function ProfilePage() {
     const payload: any = {};
     if (editForm.firstName.trim().length >= 2) payload.firstName = editForm.firstName.trim();
     if (editForm.lastName.trim().length >= 2) payload.lastName = editForm.lastName.trim();
-    if (editForm.bio.trim()) payload.bio = editForm.bio.trim();
-    if (editForm.location.trim()) payload.location = editForm.location.trim();
-    if (editForm.branch.trim()) payload.branch = editForm.branch.trim();
+    payload.bio = editForm.bio.trim();
+    payload.location = editForm.location.trim();
+    payload.branch = editForm.branch.trim();
     
     const parsedYear = parseInt(editForm.year);
     if (!isNaN(parsedYear) && parsedYear >= 1 && parsedYear <= 5) {
@@ -464,7 +469,7 @@ export default function ProfilePage() {
             style={{
               width: "134px",
               height: "134px",
-              borderRadius: "50%",
+              borderRadius: profile?.isOrgAccount ? "16px" : "50%",
               border: "4px solid #000000",
               backgroundSize: "cover",
               backgroundPosition: "center",
@@ -494,19 +499,21 @@ export default function ProfilePage() {
               >
                 Edit profile
               </button>
-            ) : (
+            ) : currentUser?.role === 'ORGANIZATION' ? null : (
               <>
-                <Link href={`/chats?userId=${user.id}`}>
-                  <button style={{ width: "36px", height: "36px", borderRadius: "50%", background: "transparent", border: "1px solid #536471", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#eff3f4" }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  </button>
-                </Link>
+                {!profile?.isOrgAccount && (
+                  <Link href={`/chats?userId=${user?.id}`}>
+                    <button style={{ width: "36px", height: "36px", borderRadius: "50%", background: "transparent", border: "1px solid #536471", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#eff3f4" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </button>
+                  </Link>
+                )}
                 <button 
                   onClick={() => {
                     if (profile?.isFollowing) {
-                      connectionService.unfollowUser(user.id).then(() => queryClient.invalidateQueries({ queryKey: ['profile', profileId] }));
+                      connectionService.unfollowUser(user?.id).then(() => queryClient.invalidateQueries({ queryKey: ['profile', profileId] }));
                     } else {
-                      connectionService.followUser(user.id).then(() => queryClient.invalidateQueries({ queryKey: ['profile', profileId] }));
+                      connectionService.followUser(user?.id).then(() => queryClient.invalidateQueries({ queryKey: ['profile', profileId] }));
                     }
                   }}
                   style={{
@@ -521,7 +528,7 @@ export default function ProfilePage() {
                     cursor: "pointer",
                   }}
                 >
-                  {profile?.isFollowing ? "Following" : "Follow"}
+                  {profile?.isOrgAccount ? (profile?.isFollowing ? "Joined" : "Join") : (profile?.isFollowing ? "Following" : "Follow")}
                 </button>
               </>
             )}
@@ -531,42 +538,76 @@ export default function ProfilePage() {
         {/* Name and Handle */}
         <div style={{ marginBottom: "16px" }}>
           <h1 style={{ fontSize: "20px", fontWeight: 800, color: "#e7e9ea", margin: 0, display: "flex", alignItems: "center", gap: "4px" }}>
-            {profile?.firstName} {profile?.lastName}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#1d9bf0" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22.5 12.5L20.25 15L20.75 18.25L17.5 19L16 22L12.5 20.5L9 22L7.5 19L4.25 18.25L4.75 15L2.5 12.5L4.75 10L4.25 6.75L7.5 6L9 3L12.5 4.5L16 3L17.5 6L20.75 6.75L20.25 10L22.5 12.5ZM10.5 16.5L17.5 9.5L16 8L10.5 13.5L8 11L6.5 12.5L10.5 16.5Z" fill="#1d9bf0"/>
-            </svg>
+            {profile?.isOrgAccount ? profile?.organization?.name || profile?.firstName : `${profile?.firstName} ${profile?.lastName}`}
+            {(profile?.verified || profile?.isOrgAccount) && (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#1d9bf0" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.5 12.5L20.25 15L20.75 18.25L17.5 19L16 22L12.5 20.5L9 22L7.5 19L4.25 18.25L4.75 15L2.5 12.5L4.75 10L4.25 6.75L7.5 6L9 3L12.5 4.5L16 3L17.5 6L20.75 6.75L20.25 10L22.5 12.5ZM10.5 16.5L17.5 9.5L16 8L10.5 13.5L8 11L6.5 12.5L10.5 16.5Z" fill="#1d9bf0"/>
+              </svg>
+            )}
           </h1>
           <p style={{ fontSize: "15px", color: "#71767b", margin: 0 }}>@{profile?.username || `${profile?.firstName?.toLowerCase() || ''}${profile?.lastName?.toLowerCase() || ''}`}</p>
         </div>
 
         {/* Bio */}
-        <p style={{ fontSize: "15px", color: "#e7e9ea", lineHeight: 1.3, marginBottom: "12px", whiteSpace: "pre-wrap" }}>
-          {profile?.bio || "No bio yet."}
-        </p>
+        {profile?.bio && (
+          <p style={{ fontSize: "15px", color: "#e7e9ea", lineHeight: 1.3, marginBottom: "12px", whiteSpace: "pre-wrap" }}>
+            {profile.bio}
+          </p>
+        )}
 
-        {/* Info row */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginBottom: "12px", color: "#71767b", fontSize: "15px" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7h-3V5a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM9 5h6v2H9V5z"></path></svg>
-            {profile?.branch || "Science & Technology"}
-          </span>
-          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
-            {profile?.location || "Location not set"}
-          </span>
-          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-            Joined {new Date(profile?.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-          </span>
+        {/* Organization Badge */}
+        {profile?.organization && !profile?.isOrgAccount && (
+          <div style={{ marginBottom: "16px" }}>
+            <span style={{ 
+              display: "inline-flex", alignItems: "center",
+              color: "#fafafa", background: "#262626", padding: "6px 12px", 
+              borderRadius: "999px", fontSize: "14px", fontWeight: 600 
+            }}>
+              <span style={{ marginRight: "6px", fontSize: "16px" }}>🏛</span>
+              {profile.organization.name}
+              <VerificationBadge width={16} height={16} />
+            </span>
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px", color: "#71767b", fontSize: "15px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+            {profile?.organization?.website && (
+              <a href={profile.organization.website} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "4px", color: "#1d9bf0", textDecoration: "none" }} className="hover:underline">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                {profile.organization.website.replace(/^https?:\/\//, '')}
+              </a>
+            )}
+            {profile?.location && (
+              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                {profile.location}
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+            {((profile?.isOrgAccount && profile?.organization?.type) || (!profile?.isOrgAccount && profile?.branch)) && (
+              <span style={{ display: "flex", alignItems: "center", gap: "4px", textTransform: "capitalize" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7h-3V5a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM9 5h6v2H9V5z"></path></svg>
+                {profile?.isOrgAccount && profile?.organization?.type ? profile.organization.type.toLowerCase() : profile?.branch}
+              </span>
+            )}
+            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+              Joined {new Date(profile?.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+            </span>
+          </div>
         </div>
 
         {/* Stats */}
         <div style={{ display: "flex", gap: "20px", marginBottom: "16px", fontSize: "15px" }}>
-          <div onClick={() => setShowFollowingModal(true)} style={{ cursor: "pointer", color: "#71767b" }} className="hover:underline">
-            <span style={{ fontWeight: 700, color: "#e7e9ea" }}>{profile?.followingCount || 0}</span> Following
-          </div>
+          {!profile?.isOrgAccount && (
+            <div onClick={() => setShowFollowingModal(true)} style={{ cursor: "pointer", color: "#71767b" }} className="hover:underline">
+              <span style={{ fontWeight: 700, color: "#e7e9ea" }}>{profile?.followingCount || 0}</span> Following
+            </div>
+          )}
           <div onClick={() => setShowFollowersModal(true)} style={{ cursor: "pointer", color: "#71767b" }} className="hover:underline">
-            <span style={{ fontWeight: 700, color: "#e7e9ea" }}>{profile?.followersCount || 0}</span> Followers
+            <span style={{ fontWeight: 700, color: "#e7e9ea" }}>{profile?.followersCount || 0}</span> {profile?.isOrgAccount ? "Members" : "Followers"}
           </div>
           <div style={{ color: "#71767b" }}>
             <span style={{ fontWeight: 700, color: "#e7e9ea" }}>{userPosts.length || 0}</span> Posts
@@ -597,7 +638,32 @@ export default function ProfilePage() {
 
       {activeTab === "posts" && (
         <div style={{ padding: "16px" }}>
-          {loadingPosts && <div style={{ color: "#666", textAlign: "center", padding: "20px" }}>Loading posts...</div>}
+          {loadingPosts && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse" style={{ background: "#171717", borderRadius: "16px", padding: "20px", border: "1px solid #262626" }}>
+                  <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#333" }} />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: "8px" }}>
+                      <div style={{ height: "14px", width: "140px", background: "#333", borderRadius: "4px" }} />
+                      <div style={{ height: "12px", width: "90px", background: "#333", borderRadius: "4px" }} />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+                    <div style={{ height: "14px", width: "100%", background: "#333", borderRadius: "4px" }} />
+                    <div style={{ height: "14px", width: "85%", background: "#333", borderRadius: "4px" }} />
+                    <div style={{ height: "14px", width: "60%", background: "#333", borderRadius: "4px" }} />
+                  </div>
+                  <div style={{ height: "200px", width: "100%", background: "#333", borderRadius: "12px", marginBottom: "16px" }} />
+                  <div style={{ display: "flex", gap: "24px" }}>
+                    <div style={{ height: "24px", width: "60px", background: "#333", borderRadius: "12px" }} />
+                    <div style={{ height: "24px", width: "60px", background: "#333", borderRadius: "12px" }} />
+                    <div style={{ height: "24px", width: "60px", background: "#333", borderRadius: "12px" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {!loadingPosts && userPosts.length === 0 && (
             <div style={{ color: "#666", textAlign: "center", padding: "20px" }}>No posts yet.</div>
           )}
@@ -610,11 +676,13 @@ export default function ProfilePage() {
       {activeTab === "about" && (
         <div style={{ padding: "16px" }}>
           <div style={{ background: "#171717", borderRadius: "16px", padding: "20px", border: "1px solid #262626" }}>
-            <div style={{ marginBottom: "18px" }}>
-              <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#9a9a9a", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Education</h4>
-              <p style={{ fontSize: "15px", color: "#e0e0e0" }}>State University — {profile?.branch || "General"}</p>
-              <p style={{ fontSize: "13px", color: "#777" }}>Year {profile?.year || 1}</p>
-            </div>
+            {!profile?.isOrgAccount && profile?.branch && (
+              <div style={{ marginBottom: "18px" }}>
+                <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#9a9a9a", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Education</h4>
+                <p style={{ fontSize: "15px", color: "#e0e0e0" }}>State University — {profile.branch}</p>
+                {profile?.year && <p style={{ fontSize: "13px", color: "#777" }}>Year {profile.year}</p>}
+              </div>
+            )}
             <div style={{ marginBottom: "18px" }}>
               <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#9a9a9a", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Skills</h4>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
@@ -623,10 +691,12 @@ export default function ProfilePage() {
                 ))}
               </div>
             </div>
-            <div>
-              <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#9a9a9a", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Location</h4>
-              <p style={{ fontSize: "15px", color: "#e0e0e0" }}>{profile?.location || "Location not set"}</p>
-            </div>
+            {profile?.location && (
+              <div>
+                <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#9a9a9a", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Location</h4>
+                <p style={{ fontSize: "15px", color: "#e0e0e0" }}>{profile.location}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -645,7 +715,7 @@ export default function ProfilePage() {
             maxHeight: "80vh", display: "flex", flexDirection: "column"
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#f0f0f0" }}>Followers</h2>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#f0f0f0" }}>{profile?.isOrgAccount ? "Members" : "Followers"}</h2>
               <button onClick={() => setShowFollowersModal(false)} style={{ background: "none", border: "none", color: "#a1a1aa", cursor: "pointer" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
@@ -659,10 +729,10 @@ export default function ProfilePage() {
                 return (
                   <Link href={`/profile/${u.userId}`} key={u.userId} onClick={() => setShowFollowersModal(false)} style={{ textDecoration: "none" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px", borderRadius: "12px", transition: "background 0.2s" }} className="hover:bg-[#222]">
-                      <div className={!u.avatar ? "avatar-gradient" : ""} style={{ width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0, backgroundImage: u.avatar ? `url(${u.avatar})` : undefined, backgroundSize: "cover" }} />
+                      <div className={!u.avatar ? "avatar-gradient" : ""} style={{ width: "40px", height: "40px", borderRadius: u.isOrgAccount ? "8px" : "50%", flexShrink: 0, backgroundImage: u.avatar ? `url(${u.avatar})` : undefined, backgroundSize: "cover" }} />
                       <div>
                         <div style={{ fontSize: "15px", fontWeight: 600, color: "#fafafa" }}>{u.firstName} {u.lastName}</div>
-                        <div style={{ fontSize: "13px", color: "#a1a1aa" }}>{u.branch || "General"}</div>
+                        {u.branch && <div style={{ fontSize: "13px", color: "#a1a1aa" }}>{u.branch}</div>}
                       </div>
                     </div>
                   </Link>
@@ -700,10 +770,10 @@ export default function ProfilePage() {
                 return (
                   <Link href={`/profile/${u.userId}`} key={u.userId} onClick={() => setShowFollowingModal(false)} style={{ textDecoration: "none" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px", borderRadius: "12px", transition: "background 0.2s" }} className="hover:bg-[#222]">
-                      <div className={!u.avatar ? "avatar-gradient" : ""} style={{ width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0, backgroundImage: u.avatar ? `url(${u.avatar})` : undefined, backgroundSize: "cover" }} />
+                      <div className={!u.avatar ? "avatar-gradient" : ""} style={{ width: "40px", height: "40px", borderRadius: u.isOrgAccount ? "8px" : "50%", flexShrink: 0, backgroundImage: u.avatar ? `url(${u.avatar})` : undefined, backgroundSize: "cover" }} />
                       <div>
                         <div style={{ fontSize: "15px", fontWeight: 600, color: "#fafafa" }}>{u.firstName} {u.lastName}</div>
-                        <div style={{ fontSize: "13px", color: "#a1a1aa" }}>{u.branch || "General"}</div>
+                        {u.branch && <div style={{ fontSize: "13px", color: "#a1a1aa" }}>{u.branch}</div>}
                       </div>
                     </div>
                   </Link>

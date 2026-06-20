@@ -71,8 +71,8 @@ export default function OnboardingPage() {
       if (avatarFile) {
         const formData = new FormData();
         formData.append("image", avatarFile);
-        const uploadRes = await profileService.uploadAvatar(formData);
-        uploadedAvatarUrl = uploadRes.data.avatarUrl;
+        const uploadRes = await profileService.uploadImage(formData, "avatar");
+        uploadedAvatarUrl = uploadRes.data.url;
       }
 
       // 2. Update Profile & set onboardingCompleted

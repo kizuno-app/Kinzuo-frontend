@@ -3,7 +3,7 @@
 :root {
   --bg-primary: #0a0a0a;
   --bg-secondary: #171717;
-  --accent: #F5A623;
+  --accent: #4f46e5;
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
   --border: #262626;
@@ -53,8 +53,8 @@ body {
   background: #27272a;
 }
 
-.avatar-gradient { background: linear-gradient(135deg, #f5a623 0%, #e05a4e 100%); }
-.avatar-gradient-2 { background: linear-gradient(135deg, #f5a623 0%, #c4513b 100%); }
-.avatar-gradient-3 { background: linear-gradient(135deg, #f0854d 0%, #f5a623 100%); }
-.avatar-gradient-4 { background: linear-gradient(135deg, #e05a4e 0%, #f5c842 100%); }
-.avatar-gradient-5 { background: linear-gradient(135deg, #f5a623 0%, #e88e25 100%); }
+.avatar-gradient { background: linear-gradient(135deg, #4f46e5 0%, #d4af37 100%); }
+.avatar-gradient-2 { background: linear-gradient(135deg, #4f46e5 0%, #cca43b 100%); }
+.avatar-gradient-3 { background: linear-gradient(135deg, #cca43b 0%, #d4af37 100%); }
+.avatar-gradient-4 { background: linear-gradient(135deg, #4f46e5 0%, #10b981 100%); }
+.avatar-gradient-5 { background: linear-gradient(135deg, #d4af37 0%, #cca43b 100%); }
