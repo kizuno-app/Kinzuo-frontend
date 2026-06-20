@@ -26,7 +26,7 @@ export const exportKey = async (key: CryptoKey): Promise<Uint8Array> => {
 export const importKey = async (rawKey: Uint8Array): Promise<CryptoKey> => {
   return await window.crypto.subtle.importKey(
     "raw",
-    rawKey,
+    rawKey as BufferSource,
     { name: "AES-GCM" },
     true,
     ["encrypt", "decrypt"]
@@ -53,7 +53,7 @@ export const encryptConversationKeyForDevice = async (
   const encrypted = await window.crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     wrappingKey,
-    rawConversationKey
+    rawConversationKey as BufferSource
   );
 
   // Prepend IV to ciphertext for easy transport (since it's just a wrapped key)
@@ -130,9 +130,9 @@ export const decryptMessage = async (payload: EncryptedPayload, key: CryptoKey):
   combined.set(authTag, ciphertext.length);
 
   const decryptedBuffer = await window.crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: nonce },
+    { name: "AES-GCM", iv: nonce as BufferSource },
     key,
-    combined
+    combined as BufferSource
   );
 
   const decoder = new TextDecoder();

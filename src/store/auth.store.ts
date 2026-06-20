@@ -14,6 +14,8 @@ export interface User {
   branch?: string;
   year?: number;
   onboardingCompleted?: boolean;
+  role?: string;
+  emailVerified?: boolean;
 }
 
 interface AuthState {

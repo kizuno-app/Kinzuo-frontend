@@ -1,12 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { feedService } from "@/services/feed.service";
 import { postService } from "@/services/post.service";
 import { useAuthStore } from "@/store/auth.store";
+import { useNotificationStore } from "@/store/notification.store";
 import Link from "next/link";
 
 import PostCard from "@/components/PostCard";
+import WelcomePage from "./welcome/page";
 
 const PostSkeleton = () => (
   <div className="animate-pulse" style={{ background: "#171717", borderRadius: "16px", padding: "16px", marginBottom: "16px", border: "1px solid #262626" }}>
@@ -27,8 +29,13 @@ const PostSkeleton = () => (
   </div>
 );
 export default function HomePage() {
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
+  const { openDrawer, unreadCount } = useNotificationStore();
   const queryClient = useQueryClient();
+
+  if (!isAuthenticated) {
+    return <WelcomePage />;
+  }
 
   const {
     data,
@@ -40,9 +47,44 @@ export default function HomePage() {
   } = useInfiniteQuery({
     queryKey: ['feed'],
     queryFn: feedService.getHomeFeed,
-    getNextPageParam: (lastPage) => lastPage.nextOffset,
-    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const postsCount = allPages.reduce((sum, page) => sum + (page.posts?.length || 0), 0);
+      const lastPagePosts = lastPage.posts || [];
+      if (lastPagePosts.length < 10) return undefined;
+      const seenIds = allPages.flatMap(page => (page.posts || []).map((p: any) => p.id));
+      return { offset: postsCount, seenIds };
+    },
+    initialPageParam: { offset: 0, seenIds: [] },
   });
+
+  const observerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Extract and deduplicate posts in-memory
+  const allPosts = data?.pages.flatMap((page) => page.posts || []) || [];
+  const uniquePosts = allPosts.filter((post, index, self) => 
+    self.findIndex((p) => p.id === post.id) === index
+  );
 
   return (
     <>
@@ -55,11 +97,16 @@ export default function HomePage() {
             <p style={{ fontSize: "14px", color: "#a1a1aa", margin: 0 }}>Find your people</p>
           </div>
           <div className="md:hidden">
-            <button style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#1f1f22", border: "1px solid #262626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+            <button 
+              onClick={() => openDrawer()}
+              style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#1f1f22", border: "1px solid #262626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
               </svg>
-              <span style={{ position: "absolute", top: "8px", right: "8px", width: "8px", height: "8px", background: "#ef4444", borderRadius: "50%", border: "2px solid #1f1f22" }} />
+              {unreadCount > 0 && (
+                <span style={{ position: "absolute", top: "8px", right: "8px", width: "8px", height: "8px", background: "#ef4444", borderRadius: "50%", border: "2px solid #1f1f22" }} />
+              )}
             </button>
           </div>
         </div>
@@ -78,14 +125,12 @@ export default function HomePage() {
           <div style={{ color: "#ef4444", textAlign: "center", padding: "40px" }}>Failed to load feed</div>
         )}
 
-        {data?.pages.map((page, i) => (
-          <div key={i}>
-            {page.posts?.map((post: any) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
+        {uniquePosts.map((post: any) => (
+          <PostCard key={post.id} post={post} />
         ))}
         
+        <div ref={observerRef} style={{ height: "10px" }} />
+
         {hasNextPage && (
           <button
             onClick={() => fetchNextPage()}

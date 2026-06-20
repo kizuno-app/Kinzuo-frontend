@@ -63,7 +63,7 @@ export default function TopBar() {
         }}
       >
         <span style={{ 
-          background: "linear-gradient(90deg, #ff4b4b 0%, #4f46e5 50%, #fbbf24 100%)",
+          background: "linear-gradient(90deg, #4f46e5 0%, #d4af37 100%)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           fontSize: "14px", 
@@ -111,7 +111,7 @@ export default function TopBar() {
           style={{
             padding: "6px 14px",
             borderRadius: "6px",
-            background: "#2563eb",
+            background: "#4f46e5",
             border: "none",
             color: "#fff",
             fontSize: "12px",
