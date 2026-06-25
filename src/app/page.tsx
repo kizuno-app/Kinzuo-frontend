@@ -86,6 +86,133 @@ export default function HomePage() {
     self.findIndex((p) => p.id === post.id) === index
   );
 
+  const [debugScroll, setDebugScroll] = useState({ scrollY: 0, saved: "" });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (typeof window !== "undefined") {
+        let scrollYVal = window.scrollY;
+        let scrollingElInfo = "none";
+        
+        // Scan for elements with scrollTop > 0
+        const elements = Array.from(document.querySelectorAll('*'));
+        for (const el of elements) {
+          if (el.scrollTop > 0) {
+            scrollYVal = el.scrollTop;
+            scrollingElInfo = `${el.tagName.toLowerCase()}${el.className ? '.' + el.className.split(' ').join('.') : ''}${el.id ? '#' + el.id : ''}`;
+            console.log("[ScrollDebug] Scroll element:", scrollingElInfo, "scrollTop:", el.scrollTop);
+            break;
+          }
+        }
+
+        setDebugScroll({
+          scrollY: scrollYVal,
+          saved: (sessionStorage.getItem("home-feed-scroll-position") || "null") + ` (${scrollingElInfo})`
+        });
+      }
+    }, 200);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Disable browser automatic scroll restoration on mount, restore on unmount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+      const original = window.history.scrollRestoration;
+      window.history.scrollRestoration = "manual";
+      return () => {
+        window.history.scrollRestoration = original;
+      };
+    }
+  }, []);
+
+  // Scroll preservation and restoration
+  useEffect(() => {
+    console.log("[ScrollRestore] Effect triggered. isLoading:", isLoading, "uniquePosts:", uniquePosts.length);
+    if (!isLoading && uniquePosts.length > 0) {
+      const savedPosition = sessionStorage.getItem("home-feed-scroll-position");
+      console.log("[ScrollRestore] Saved position in storage:", savedPosition);
+      if (savedPosition) {
+        const targetScroll = parseInt(savedPosition, 10);
+        if (targetScroll > 0) {
+          const restoreScroll = () => {
+            console.log("[ScrollRestore] Restoring scroll to:", targetScroll, "current actual scrollY:", window.scrollY, "document height:", document.documentElement.scrollHeight);
+            
+            // Restore window scroll
+            window.scrollTo({
+              top: targetScroll,
+              behavior: "instant" as any
+            });
+
+            // Also restore scroll on documentElement and body in case either is the scroll container
+            if (document.documentElement) {
+              document.documentElement.scrollTop = targetScroll;
+            }
+            if (document.body) {
+              document.body.scrollTop = targetScroll;
+            }
+          };
+
+          // Attempt restoration across multiple layout frames to handle dynamic image loading / DOM rendering
+          restoreScroll();
+          const frameId = requestAnimationFrame(restoreScroll);
+          const timerId = setTimeout(restoreScroll, 50);
+          const longTimerId = setTimeout(restoreScroll, 150);
+          const extraLongTimerId = setTimeout(restoreScroll, 300);
+
+          return () => {
+            console.log("[ScrollRestore] Cleaning up restoration timers");
+            cancelAnimationFrame(frameId);
+            clearTimeout(timerId);
+            clearTimeout(longTimerId);
+            clearTimeout(extraLongTimerId);
+          };
+        }
+      }
+    }
+  }, [isLoading, uniquePosts.length]);
+
+  useEffect(() => {
+    let timeoutId: any;
+    const handleScroll = () => {
+      const currentScroll = Math.ceil(
+        Math.max(
+          window.scrollY || 0,
+          document.documentElement?.scrollTop || 0,
+          document.body?.scrollTop || 0
+        )
+      );
+      console.log("[ScrollPreserve] handleScroll. scrollY:", currentScroll);
+      
+      setDebugScroll({
+        scrollY: currentScroll,
+        saved: sessionStorage.getItem("home-feed-scroll-position") || "null"
+      });
+      
+      if (currentScroll > 0) {
+        // Cancel any pending top-scroll clears and update position
+        clearTimeout(timeoutId);
+        sessionStorage.setItem("home-feed-scroll-position", currentScroll.toString());
+      } else if (currentScroll === 0) {
+        // If they scrolled to the top, wait 300ms before clearing the saved position.
+        // If they navigate away, the component unmounts and cancels this timeout,
+        // preserving the last positive scroll position!
+        clearTimeout(timeoutId);
+        console.log("[ScrollPreserve] scrollY is 0. Scheduling clear in 300ms...");
+        timeoutId = setTimeout(() => {
+          console.log("[ScrollPreserve] Timeout fired. Clearing home-feed-scroll-position");
+          sessionStorage.removeItem("home-feed-scroll-position");
+        }, 300);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
+    return () => {
+      console.log("[ScrollPreserve] Cleanup. Removing scroll listener. Timeout ID:", timeoutId);
+      window.removeEventListener("scroll", handleScroll, { capture: true });
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
   return (
     <>
       <div style={{ padding: "16px 24px", borderBottom: "1px solid #262626", marginBottom: "16px", position: "sticky", top: 0, background: "rgba(10,10,10,0.85)", backdropFilter: "blur(12px)", zIndex: 10 }}>
@@ -144,6 +271,18 @@ export default function HomePage() {
           </button>
         )}
       </div>
+
+      {/* Floating Scroll Debug Panel */}
+      {process.env.NODE_ENV === "development" && (
+        <div style={{
+          position: "fixed", bottom: "80px", right: "20px", background: "rgba(0,0,0,0.85)",
+          border: "1px solid #333", borderRadius: "10px", padding: "10px", zIndex: 9999,
+          color: "#fff", fontSize: "12px", fontFamily: "monospace", display: "flex", flexDirection: "column", gap: "4px"
+        }}>
+          <div>scrollY: {debugScroll.scrollY}px</div>
+          <div>savedScroll: {debugScroll.saved}px</div>
+        </div>
+      )}
     </>
   );
 }

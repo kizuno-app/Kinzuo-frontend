@@ -12,7 +12,7 @@ interface ChatState {
   sendMessage: (receiverId: string, content: string) => void;
 }
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:5000';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://20.244.83.192:5000';
 
 export const useChatStore = create<ChatState>((set, get) => ({
   socket: null,
