@@ -69,9 +69,16 @@ const navItems = [
 import { useNotificationStore } from "@/store/notification.store";
 
 function NavItem({ item, isActive, isNotification, unreadCount }: any) {
+  const handleClick = () => {
+    if (item.href === "/") {
+      sessionStorage.removeItem("home-feed-scroll-position");
+    }
+  };
+
   return (
     <Link
       href={item.href}
+      onClick={handleClick}
       style={{
         display: "flex",
         alignItems: "center",
@@ -356,6 +363,11 @@ export function MobileNav() {
           <Link
             key={item.href}
             href={item.href}
+            onClick={() => {
+              if (item.href === "/") {
+                sessionStorage.removeItem("home-feed-scroll-position");
+              }
+            }}
             style={{
               display: "flex",
               flexDirection: "column",
